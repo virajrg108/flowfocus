@@ -1,0 +1,282 @@
+import { useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "../lib/db";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import {
+    startOfDay, subDays, format, isSameDay,
+    eachDayOfInterval, subMonths
+} from "date-fns";
+import { cn } from "../lib/utils";
+import { Calendar, Filter } from "lucide-react";
+
+type DateRange = '7d' | '30d' | '60d' | 'custom';
+
+export default function StatsPage() {
+    const [range, setRange] = useState<DateRange>('7d');
+    const [customStart, setCustomStart] = useState(format(subDays(new Date(), 7), 'yyyy-MM-dd'));
+    const [customEnd, setCustomEnd] = useState(format(new Date(), 'yyyy-MM-dd'));
+
+    const sessions = useLiveQuery(() => db.sessions.toArray());
+
+    // --- Filtering Logic ---
+    const getFilterDate = () => {
+        const today = startOfDay(new Date());
+        switch (range) {
+            case '30d': return subDays(today, 29);
+            case '60d': return subDays(today, 59);
+            case 'custom': return startOfDay(new Date(customStart));
+            default: return subDays(today, 6); // 7 days inclusive
+        }
+    };
+
+    const getEndDate = () => {
+        if (range === 'custom') return startOfDay(new Date(customEnd));
+        return startOfDay(new Date());
+    };
+
+    const startDate = getFilterDate();
+    const endDate = getEndDate();
+
+    // Bar Chart Data
+    const dateInterval = eachDayOfInterval({ start: startDate, end: endDate });
+
+    const barData = dateInterval.map(date => {
+        const daySessions = sessions?.filter(s =>
+            s.type === 'work' && isSameDay(new Date(s.startTime), date)
+        ) || [];
+
+        const totalSeconds = daySessions.reduce((acc, s) => acc + s.duration, 0);
+        return {
+            date: format(date, range === '7d' ? 'EEE' : 'MMM d'),
+            fullDate: format(date, 'MMM d, yyyy'),
+            minutes: Math.round(totalSeconds / 60)
+        };
+    });
+
+    // Gantt Chart Data (Last 7 Days Fixed)
+    const ganttDays = eachDayOfInterval({
+        start: subDays(startOfDay(new Date()), 6),
+        end: startOfDay(new Date())
+    });
+
+    // Heatmap Data (Last 3 Months Fixed)
+    const heatmapStartDate = subMonths(startOfDay(new Date()), 3); // Approx 3 months
+    const heatmapData = eachDayOfInterval({ start: heatmapStartDate, end: new Date() });
+
+    const getIntensity = (minutes: number) => {
+        if (minutes === 0) return 'bg-secondary/30';
+        if (minutes < 30) return 'bg-primary/20';
+        if (minutes < 60) return 'bg-primary/40';
+        if (minutes < 120) return 'bg-primary/60';
+        if (minutes < 240) return 'bg-primary/80';
+        return 'bg-primary';
+    };
+
+    // Stats Totals
+    const totalFocusMinutes = sessions
+        ?.filter(s => s.type === 'work')
+        .reduce((acc, s) => acc + s.duration, 0) || 0;
+    const totalMinutes = Math.round(totalFocusMinutes / 60);
+
+    return (
+        <div className="max-w-screen-lg mx-auto space-y-12 pb-12">
+            <div className="space-y-2">
+                <h1 className="text-3xl font-bold tracking-tight">Statistics</h1>
+                <p className="text-muted-foreground">Track your productivity over time.</p>
+            </div>
+
+            {/* Summary Cards */}
+            <div className="grid gap-4 md:grid-cols-2">
+                <div className="p-6 rounded-xl bg-card border border-border">
+                    <div className="text-sm font-medium text-muted-foreground">Lifetime Focus Time</div>
+                    <div className="text-3xl font-bold mt-2">{totalMinutes} <span className="text-sm font-normal text-muted-foreground">mins</span></div>
+                </div>
+                <div className="p-6 rounded-xl bg-card border border-border">
+                    <div className="text-sm font-medium text-muted-foreground">Total Sessions</div>
+                    <div className="text-3xl font-bold mt-2">{sessions?.filter(s => s.type === 'work').length || 0}</div>
+                </div>
+            </div>
+
+            {/* 1. Bar Chart with Date Filters */}
+            <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <h3 className="text-lg font-medium flex items-center gap-2">
+                        <Filter className="w-4 h-4" /> Activity Overview
+                    </h3>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex items-center bg-secondary/30 rounded-lg p-1">
+                            {(['7d', '30d', '60d'] as const).map((r) => (
+                                <button
+                                    key={r}
+                                    onClick={() => setRange(r)}
+                                    className={cn(
+                                        "px-3 py-1 text-xs font-medium rounded-md transition-colors",
+                                        range === r ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                >
+                                    Last {r.replace('d', '')} days
+                                </button>
+                            ))}
+                            <button
+                                onClick={() => setRange('custom')}
+                                className={cn(
+                                    "px-3 py-1 text-xs font-medium rounded-md transition-colors",
+                                    range === 'custom' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                Custom
+                            </button>
+                        </div>
+                        {range === 'custom' && (
+                            <div className="flex items-center gap-2 text-sm bg-secondary/30 p-1 rounded-lg">
+                                <input
+                                    type="date"
+                                    value={customStart}
+                                    onChange={(e) => setCustomStart(e.target.value)}
+                                    className="bg-transparent border-none focus:ring-0 px-2 py-0.5 text-xs"
+                                />
+                                <span className="text-muted-foreground">-</span>
+                                <input
+                                    type="date"
+                                    value={customEnd}
+                                    onChange={(e) => setCustomEnd(e.target.value)}
+                                    className="bg-transparent border-none focus:ring-0 px-2 py-0.5 text-xs"
+                                />
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div className="p-6 rounded-xl bg-card border border-border h-[400px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={barData}>
+                            <XAxis
+                                dataKey="date"
+                                stroke="var(--muted-foreground)"
+                                fontSize={12}
+                                tickLine={false}
+                                axisLine={false}
+                                minTickGap={30}
+                            />
+                            <YAxis
+                                stroke="var(--muted-foreground)"
+                                fontSize={12}
+                                tickLine={false}
+                                axisLine={false}
+                                tickFormatter={(value) => `${value}m`}
+                            />
+                            <Tooltip
+                                cursor={{ fill: 'var(--secondary)', opacity: 0.5 }}
+                                content={({ active, payload }) => {
+                                    if (active && payload && payload.length) {
+                                        return (
+                                            <div className="bg-popover border border-border p-2 rounded shadow-sm text-sm">
+                                                <p className="font-medium text-foreground">{payload[0].payload.fullDate}</p>
+                                                <p className="text-primary">{payload[0].value} mins</p>
+                                            </div>
+                                        );
+                                    }
+                                    return null;
+                                }}
+                            />
+                            <Bar dataKey="minutes" radius={[4, 4, 0, 0]}>
+                                {barData.map((_, index) => (
+                                    <Cell key={`cell-${index}`} fill="var(--primary)" />
+                                ))}
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+
+            {/* 2. Gantt Chart (Last 7 Days) */}
+            <div className="space-y-4">
+                <h3 className="text-lg font-medium flex items-center gap-2">
+                    <Calendar className="w-4 h-4" /> Daily Timeline (Last 7 Days)
+                </h3>
+                <div className="p-6 rounded-xl bg-card border border-border space-y-4 overflow-x-auto">
+                    {ganttDays.reverse().map((day) => {
+                        const daySessions = sessions?.filter(s =>
+                            s.type === 'work' && isSameDay(new Date(s.startTime), day)
+                        ).sort((a, b) => a.startTime.getTime() - b.startTime.getTime()) || [];
+
+                        return (
+                            <div key={day.toISOString()} className="flex items-center gap-4">
+                                <div className="w-24 flex-shrink-0 text-sm text-muted-foreground font-medium">
+                                    {format(day, 'MMM d, EEE')}
+                                </div>
+                                <div className="flex-1 h-8 bg-secondary/30 rounded-md relative overflow-hidden">
+                                    {/* Hour markers simplified */}
+                                    {[0, 6, 12, 18].map(h => (
+                                        <div key={h} className="absolute top-0 bottom-0 border-l border-border/50 text-[10px] text-muted-foreground pl-1" style={{ left: `${(h / 24) * 100}%` }}>
+                                            {h}h
+                                        </div>
+                                    ))}
+
+                                    {daySessions.map(session => {
+                                        const startMins = session.startTime.getHours() * 60 + session.startTime.getMinutes();
+                                        const durationMins = Math.round(session.duration / 60);
+                                        const startPercent = (startMins / 1440) * 100;
+                                        const widthPercent = Math.max((durationMins / 1440) * 100, 0.5); // min width for visibility
+
+                                        return (
+                                            <div
+                                                key={session.id}
+                                                className="absolute top-1 bottom-1 bg-primary rounded-sm opacity-80 hover:opacity-100 transition-opacity cursor-help group"
+                                                style={{ left: `${startPercent}%`, width: `${widthPercent}%` }}
+                                            >
+                                                {/* Tooltip on hover */}
+                                                <div className="invisible group-hover:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded border border-border whitespace-nowrap z-10">
+                                                    {format(session.startTime, 'HH:mm')} - {Math.round(session.duration / 60)}m
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* 3. Heat Map (Last 3 Months) */}
+            <div className="space-y-4">
+                <h3 className="text-lg font-medium">Consistency (Last 3 Months)</h3>
+                <div className="p-6 rounded-xl bg-card border border-border overflow-x-auto">
+                    <div className="inline-grid grid-rows-7 grid-flow-col gap-1">
+                        {heatmapData.map(day => {
+                            const dayMinutes = sessions?.filter(s =>
+                                s.type === 'work' && isSameDay(new Date(s.startTime), day)
+                            ).reduce((acc, s) => acc + (s.duration / 60), 0) || 0;
+
+                            return (
+                                <div
+                                    key={day.toISOString()}
+                                    className={cn(
+                                        "w-3 h-3 rounded-[2px] transition-colors relative group",
+                                        getIntensity(Math.round(dayMinutes))
+                                    )}
+                                >
+                                    <div className="invisible group-hover:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-popover text-popover-foreground text-xs rounded border border-border whitespace-nowrap z-10">
+                                        {format(day, 'MMM d')}: {Math.round(dayMinutes)}m
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <div className="mt-4 flex items-center justify-end gap-2 text-xs text-muted-foreground">
+                        <span>Less</span>
+                        <div className="flex gap-1">
+                            <div className="w-3 h-3 rounded-[2px] bg-secondary/30" />
+                            <div className="w-3 h-3 rounded-[2px] bg-primary/20" />
+                            <div className="w-3 h-3 rounded-[2px] bg-primary/40" />
+                            <div className="w-3 h-3 rounded-[2px] bg-primary/60" />
+                            <div className="w-3 h-3 rounded-[2px] bg-primary/80" />
+                        </div>
+                        <span>More</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}

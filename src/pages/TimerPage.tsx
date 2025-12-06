@@ -44,7 +44,7 @@ export default function TimerPage() {
             } else {
                 // Pomodoro Logic
                 let targetParams = pomodoroDuration * 60;
-                if (mode === 'break') targetParams = 5 * 60; // Default 5 min break for Pomodoro
+                if (mode === 'break') targetParams = (pomodoroDuration * 60) / 5;
 
                 const remaining = Math.max(0, targetParams - totalElapsed);
                 setDisplayTime(remaining);
@@ -87,14 +87,14 @@ export default function TimerPage() {
     return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] max-w-xl mx-auto">
             <div className="w-full max-w-lg flex flex-col">
-                {/* Tabs */}
-                <div className="grid grid-cols-2 p-1 bg-muted/40 rounded-t-xl border-t border-x border-white/5">
+                {/* Tabs (Outside Card - Top) */}
+                <div className="grid grid-cols-2 p-1 bg-muted/50 rounded-t-xl border-t border-x border-border">
                     <button
                         onClick={() => setTimerType('flowmodoro')}
                         className={cn(
-                            "py-2 rounded-md text-sm font-medium transition-colors text-center",
+                            "py-2.5 rounded-lg text-sm font-medium transition-all duration-200 text-center",
                             timerType === 'flowmodoro'
-                                ? "bg-background shadow-sm text-foreground"
+                                ? "bg-background shadow-sm text-foreground scale-[1.02]"
                                 : "text-muted-foreground hover:text-foreground hover:bg-background/50"
                         )}
                     >
@@ -103,9 +103,9 @@ export default function TimerPage() {
                     <button
                         onClick={() => setTimerType('pomodoro')}
                         className={cn(
-                            "py-2 rounded-md text-sm font-medium transition-colors text-center",
+                            "py-2.5 rounded-lg text-sm font-medium transition-all duration-200 text-center",
                             timerType === 'pomodoro'
-                                ? "bg-background shadow-sm text-foreground"
+                                ? "bg-background shadow-sm text-foreground scale-[1.02]"
                                 : "text-muted-foreground hover:text-foreground hover:bg-background/50"
                         )}
                     >
@@ -113,8 +113,9 @@ export default function TimerPage() {
                     </button>
                 </div>
 
-                {/* Timer Content Box */}
+                {/* Timer Card (Bottom) */}
                 <div className="flex flex-col items-center w-full bg-card border border-border rounded-b-2xl rounded-t-none p-8 shadow-2xl shadow-black/40 space-y-8">
+
                     {/* Mode Toggle (Focus/Break) */}
                     <div className="flex items-center gap-4 bg-secondary/50 p-2 rounded-full">
                         <button
@@ -218,7 +219,7 @@ export default function TimerPage() {
                                         if (timerType === 'flowmodoro') {
                                             setDisplayTime(mode === 'focus' ? 0 : earnedBreakTime);
                                         } else {
-                                            setDisplayTime(mode === 'focus' ? pomodoroDuration * 60 : 5 * 60);
+                                            setDisplayTime(mode === 'focus' ? pomodoroDuration * 60 : (pomodoroDuration * 60) / 5);
                                         }
                                     }
                                 }}

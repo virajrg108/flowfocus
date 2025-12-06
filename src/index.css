@@ -20,6 +20,8 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-focus: var(--focus-color);
+  --color-break: var(--break-color);
 }
 
 @layer base {
@@ -44,6 +46,12 @@
     /* Adjusted for visibility */
     --input: hsl(217.2 32.6% 17.5%);
     --ring: hsl(212.7 26.8% 83.9%);
+
+    /* Timer colors - Dark theme */
+    --focus-color: hsl(226 100% 77%);
+    /* indigo-300 */
+    --break-color: hsl(187 71% 60%);
+    /* cyan-300 */
   }
 
   .light {
@@ -66,6 +74,12 @@
     --border: hsl(214.3 31.8% 91.4%);
     --input: hsl(214.3 31.8% 91.4%);
     --ring: hsl(222.2 84% 4.9%);
+
+    /* Timer colors - Light theme */
+    --focus-color: hsl(231 48% 35%);
+    /* indigo-700 */
+    --break-color: hsl(188 94% 27%);
+    /* cyan-700 */
   }
 
   * {

@@ -142,7 +142,10 @@ export default function TimerPage() {
 
                     {/* Timer Display */}
                     <div className="relative group text-center py-8">
-                        <div className="text-[120px] leading-none font-bold tabular-nums tracking-tighter text-foreground select-none">
+                        <div className={cn(
+                            "text-[120px] leading-none font-medium tabular-nums tracking-tighter select-none transition-colors",
+                            mode === 'focus' ? "text-focus" : "text-break"
+                        )}>
                             {formatTime(displayTime)}
                         </div>
 
@@ -193,14 +196,24 @@ export default function TimerPage() {
                         {status === 'running' ? (
                             <button
                                 onClick={pause}
-                                className="h-16 w-16 rounded-full bg-secondary border border-primary/10 flex items-center justify-center text-foreground hover:bg-secondary/80 transition-colors"
+                                className={cn(
+                                    "h-16 w-16 rounded-full flex items-center justify-center transition-colors shadow-md",
+                                    mode === 'focus'
+                                        ? "bg-focus/20 text-focus hover:bg-focus/30 shadow-focus/25"
+                                        : "bg-break/20 text-break hover:bg-break/30 shadow-break/25"
+                                )}
                             >
                                 <Pause className="w-8 h-8 fill-current" />
                             </button>
                         ) : (
                             <button
                                 onClick={start}
-                                className="h-16 w-16 rounded-full bg-primary flex items-center justify-center text-primary-foreground hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25"
+                                className={cn(
+                                    "h-16 w-16 rounded-full flex items-center justify-center transition-colors shadow-md",
+                                    mode === 'focus'
+                                        ? "bg-focus/20 text-focus hover:bg-focus/30 shadow-focus/25"
+                                        : "bg-break/20 text-break hover:bg-break/30 shadow-break/25"
+                                )}
                             >
                                 <Play className="w-8 h-8 fill-current ml-1" />
                             </button>
@@ -231,6 +244,6 @@ export default function TimerPage() {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../lib/db";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from "recharts";
 import {
     startOfDay, subDays, format, isSameDay,
     eachDayOfInterval, subMonths, startOfWeek
 } from "date-fns";
 import { cn } from "../lib/utils";
-import { Calendar, Filter } from "lucide-react";
+import { Calendar, Filter, Tag as TagIcon } from "lucide-react";
 
 type DateRange = '7d' | '30d' | '60d' | 'custom';
 
@@ -17,6 +17,7 @@ export default function StatsPage() {
     const [customEnd, setCustomEnd] = useState(format(new Date(), 'yyyy-MM-dd'));
 
     const sessions = useLiveQuery(() => db.sessions.toArray());
+    const tags = useLiveQuery(() => db.tags.toArray());
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -71,6 +72,36 @@ export default function StatsPage() {
         };
     });
 
+    // Tag Stats (Based on Filtered Range)
+    const filteredSessions = sessions?.filter(s =>
+        s.type === 'work' &&
+        new Date(s.startTime) >= startDate &&
+        new Date(s.startTime) <= new Date(endDate.getTime() + 86400000) // Include end date fully
+    ) || [];
+
+    const tagStats = tags?.map(tag => {
+        const duration = filteredSessions
+            .filter(s => s.tagId === tag.id)
+            .reduce((acc, s) => acc + s.duration, 0);
+        return {
+            name: tag.name,
+            color: tag.color,
+            minutes: Math.round(duration / 60)
+        };
+    }).filter(t => t.minutes > 0).sort((a, b) => b.minutes - a.minutes) || [];
+
+    const untaggedDuration = filteredSessions
+        .filter(s => !s.tagId)
+        .reduce((acc, s) => acc + s.duration, 0);
+
+    if (untaggedDuration > 0) {
+        tagStats.push({
+            name: 'Untagged',
+            color: '#94a3b8', // slate-400
+            minutes: Math.round(untaggedDuration / 60)
+        });
+    }
+
     // Gantt Chart Data (Last 7 Days Fixed)
     const ganttDays = eachDayOfInterval({
         start: subDays(startOfDay(new Date()), 6),
@@ -105,7 +136,7 @@ export default function StatsPage() {
             </div>
 
             {/* Summary Cards */}
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-3">
                 <div className="p-6 rounded-xl bg-card border border-border">
                     <div className="text-sm font-medium text-muted-foreground">Lifetime Focus Time</div>
                     <div className="text-3xl font-bold mt-2">{totalMinutes} <span className="text-sm font-normal text-muted-foreground">mins</span></div>
@@ -113,6 +144,13 @@ export default function StatsPage() {
                 <div className="p-6 rounded-xl bg-card border border-border">
                     <div className="text-sm font-medium text-muted-foreground">Total Sessions</div>
                     <div className="text-3xl font-bold mt-2">{sessions?.filter(s => s.type === 'work').length || 0}</div>
+                </div>
+                {/* Focus by Tag (Top Tag) */}
+                <div className="p-6 rounded-xl bg-card border border-border">
+                    <div className="text-sm font-medium text-muted-foreground">Top Tag (Selected Range)</div>
+                    <div className="text-3xl font-bold mt-2">
+                        {tagStats.length > 0 ? tagStats[0].name : '-'}
+                    </div>
                 </div>
             </div>
 
@@ -166,45 +204,102 @@ export default function StatsPage() {
                     </div>
                 </div>
 
-                <div className="p-6 rounded-xl bg-card border border-border h-[400px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={barData}>
-                            <XAxis
-                                dataKey="date"
-                                stroke="var(--muted-foreground)"
-                                fontSize={12}
-                                tickLine={false}
-                                axisLine={false}
-                                minTickGap={30}
-                            />
-                            <YAxis
-                                stroke="var(--muted-foreground)"
-                                fontSize={12}
-                                tickLine={false}
-                                axisLine={false}
-                                tickFormatter={(value) => `${value}m`}
-                            />
-                            <Tooltip
-                                cursor={{ fill: 'var(--secondary)', opacity: 0.5 }}
-                                content={({ active, payload }) => {
-                                    if (active && payload && payload.length) {
-                                        return (
-                                            <div className="bg-popover border border-border p-2 rounded shadow-sm text-sm">
-                                                <p className="font-medium text-foreground">{payload[0].payload.fullDate}</p>
-                                                <p className="text-primary">{payload[0].value} mins</p>
-                                            </div>
-                                        );
-                                    }
-                                    return null;
-                                }}
-                            />
-                            <Bar dataKey="minutes" radius={[4, 4, 0, 0]}>
-                                {barData.map((_, index) => (
-                                    <Cell key={`cell-${index}`} fill="var(--primary)" />
-                                ))}
-                            </Bar>
-                        </BarChart>
-                    </ResponsiveContainer>
+                <div className="grid md:grid-cols-2 gap-4">
+                    <div className="p-6 rounded-xl bg-card border border-border h-[400px] flex-1">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={barData}>
+                                <XAxis
+                                    dataKey="date"
+                                    stroke="var(--muted-foreground)"
+                                    fontSize={12}
+                                    tickLine={false}
+                                    axisLine={false}
+                                    minTickGap={30}
+                                />
+                                <YAxis
+                                    stroke="var(--muted-foreground)"
+                                    fontSize={12}
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tickFormatter={(value) => `${value}m`}
+                                />
+                                <Tooltip
+                                    cursor={{ fill: 'var(--secondary)', opacity: 0.5 }}
+                                    content={({ active, payload }) => {
+                                        if (active && payload && payload.length) {
+                                            return (
+                                                <div className="bg-popover border border-border p-2 rounded shadow-sm text-sm">
+                                                    <p className="font-medium text-foreground">{payload[0].payload.fullDate}</p>
+                                                    <p className="text-primary">{payload[0].value} mins</p>
+                                                </div>
+                                            );
+                                        }
+                                        return null;
+                                    }}
+                                />
+                                <Bar dataKey="minutes" radius={[4, 4, 0, 0]}>
+                                    {barData.map((_, index) => (
+                                        <Cell key={`cell-${index}`} fill="var(--primary)" />
+                                    ))}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+
+                    <div className="p-6 rounded-xl bg-card border border-border h-[400px] flex flex-col">
+                        <h4 className="text-sm font-medium text-muted-foreground mb-4 flex items-center gap-2">
+                            <TagIcon className="w-4 h-4" /> Distribution (mins)
+                        </h4>
+                        <div className="flex-1 min-h-0 flex items-center justify-center">
+                            {tagStats.length > 0 ? (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={tagStats}
+                                            dataKey="minutes"
+                                            nameKey="name"
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={60}
+                                            outerRadius={90}
+                                            paddingAngle={2}
+                                        >
+                                            {tagStats.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip
+                                            content={({ active, payload }) => {
+                                                if (active && payload && payload.length) {
+                                                    const data = payload[0].payload;
+                                                    return (
+                                                        <div className="bg-popover border border-border p-2 rounded shadow-sm text-sm">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: data.color }} />
+                                                                <span className="font-medium">{data.name}</span>
+                                                            </div>
+                                                            <div className="text-muted-foreground ml-4">{data.minutes} mins</div>
+                                                        </div>
+                                                    );
+                                                }
+                                                return null;
+                                            }}
+                                        />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="text-muted-foreground text-sm">No data</div>
+                            )}
+                        </div>
+                        <div className="mt-4 flex flex-wrap gap-2 justify-center">
+                            {tagStats.map(tag => (
+                                <div key={tag.name} className="flex items-center gap-1.5 text-xs text-muted-foreground bg-secondary/20 px-2 py-1 rounded-full">
+                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color }} />
+                                    <span>{tag.name}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             </div>
 

@@ -1,18 +1,36 @@
-import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { useEffect, useState, useRef } from "react";
 import { useTimerStore } from "../store/useTimerStore";
-import { Play, Pause, Square, Coffee, Brain, Pencil, Check } from "lucide-react";
+import { Play, Pause, Square, Coffee, Brain, Pencil, Check, Tag as TagIcon, ChevronDown, Settings } from "lucide-react";
 import { cn } from "../lib/utils";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "../lib/db";
 
 export default function TimerPage() {
     const {
         status, mode, startTime, accumulatedTime,
-        timerType, pomodoroDuration, earnedBreakTime,
-        start, pause, stop, setMode, setTimerType, setPomodoroDuration
+        timerType, pomodoroDuration, earnedBreakTime, selectedTagId,
+        start, pause, stop, setMode, setTimerType, setPomodoroDuration, setTagId
     } = useTimerStore();
+
+    const tags = useLiveQuery(() => db.tags.toArray());
 
     const [displayTime, setDisplayTime] = useState(0);
     const [isEditingPomo, setIsEditingPomo] = useState(false);
     const [pomoInput, setPomoInput] = useState(pomodoroDuration.toString());
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     // Sync input with store
     useEffect(() => {
@@ -140,6 +158,82 @@ export default function TimerPage() {
                         </button>
                     </div>
 
+                    {/* Tag Selector (Chakra Style) */}
+                    {mode === 'focus' && (
+                        <div className="relative z-20 flex items-center justify-center gap-2 mt-6">
+                            {status === 'idle' && accumulatedTime === 0 ? (
+                                <>
+                                    <div className="relative" ref={dropdownRef}>
+                                        <button
+                                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                            className="flex items-center gap-2 px-3 py-1.5 bg-card border border-border rounded-md text-sm font-medium shadow-sm hover:bg-secondary/50 transition-colors"
+                                        >
+                                            <TagIcon className="w-4 h-4 text-muted-foreground" />
+                                            <span>
+                                                {selectedTagId
+                                                    ? tags?.find(t => t.id === selectedTagId)?.name
+                                                    : "Select Tag"
+                                                }
+                                            </span>
+                                            {selectedTagId && tags?.find(t => t.id === selectedTagId) && (
+                                                <div
+                                                    className="w-2 h-2 rounded-full"
+                                                    style={{ backgroundColor: tags?.find(t => t.id === selectedTagId)?.color }}
+                                                />
+                                            )}
+                                            <ChevronDown className="w-3 h-3 text-muted-foreground ml-1" />
+                                        </button>
+
+                                        {isDropdownOpen && (
+                                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-48 bg-popover border border-border rounded-md shadow-lg py-1 animate-in fade-in zoom-in-95 duration-100 z-50">
+                                                <button
+                                                    onClick={() => {
+                                                        setTagId(null);
+                                                        setIsDropdownOpen(false);
+                                                    }}
+                                                    className="w-full text-left px-3 py-2 text-sm hover:bg-secondary/50 transition-colors"
+                                                >
+                                                    No Tag
+                                                </button>
+                                                {tags?.map(tag => (
+                                                    <button
+                                                        key={tag.id}
+                                                        onClick={() => {
+                                                            setTagId(tag.id);
+                                                            setIsDropdownOpen(false);
+                                                        }}
+                                                        className="w-full text-left px-3 py-2 text-sm hover:bg-secondary/50 transition-colors flex items-center gap-2"
+                                                    >
+                                                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color }} />
+                                                        {tag.name}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <Link
+                                        to="/settings"
+                                        className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-md transition-colors"
+                                        title="Manage Tags"
+                                    >
+                                        <Pencil className="w-4 h-4" />
+                                    </Link>
+                                </>
+                            ) : (
+                                // Read-only view during focus (or break if visible, but mode===focus check wraps this)
+                                selectedTagId && tags?.find(t => t.id === selectedTagId) && (
+                                    <div className="flex items-center gap-2 px-3 py-1 bg-secondary/30 rounded-full text-sm border border-transparent">
+                                        <div
+                                            className="w-2 h-2 rounded-full"
+                                            style={{ backgroundColor: tags.find(t => t.id === selectedTagId)?.color }}
+                                        />
+                                        <span className="font-medium">{tags.find(t => t.id === selectedTagId)?.name}</span>
+                                    </div>
+                                )
+                            )}
+                        </div>
+                    )}
+
                     {/* Timer Display */}
                     <div className="relative group text-center py-8">
                         <div className={cn(
@@ -242,6 +336,8 @@ export default function TimerPage() {
                             </button>
                         )}
                     </div>
+
+
                 </div>
             </div>
         </div >

@@ -14,6 +14,7 @@ interface TimerState {
     startTime: number | null; // Timestamp when current run started
     accumulatedTime: number;  // Seconds accumulated before current run
     taskId: number | null;
+    selectedTagId: number | null;
 
     // Actions
     start: () => void;
@@ -24,6 +25,7 @@ interface TimerState {
     setTimerType: (type: TimerType) => void;
     setPomodoroDuration: (minutes: number) => void;
     setTaskId: (id: number | null) => void;
+    setTagId: (id: number | null) => void;
 }
 
 export const useTimerStore = create<TimerState>((set, get) => ({
@@ -35,6 +37,7 @@ export const useTimerStore = create<TimerState>((set, get) => ({
     startTime: null,
     accumulatedTime: 0,
     taskId: null,
+    selectedTagId: null,
 
     start: () => set((state) => {
         if (state.status === 'running') return state;
@@ -100,6 +103,7 @@ export const useTimerStore = create<TimerState>((set, get) => ({
                 duration: Math.round(duration),
                 type: state.mode === 'focus' ? 'work' : 'break',
                 taskId: state.taskId || undefined,
+                tagId: state.selectedTagId || undefined,
             });
         } catch (e) {
             console.error("Failed to save session", e);
@@ -121,4 +125,6 @@ export const useTimerStore = create<TimerState>((set, get) => ({
     setPomodoroDuration: (minutes) => set({ pomodoroDuration: minutes }),
 
     setTaskId: (taskId) => set({ taskId }),
+
+    setTagId: (tagId) => set({ selectedTagId: tagId }),
 }));

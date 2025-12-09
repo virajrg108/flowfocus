@@ -3,6 +3,7 @@ import { Trash2, AlertTriangle, Plus, X, Pencil, Check } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useState } from "react";
 import { cn } from "../lib/utils";
+import { useTimerStore } from "../store/useTimerStore";
 
 const TAG_COLORS = [
     '#ef4444', // red-500
@@ -176,6 +177,35 @@ export default function SettingsPage() {
                             <button onClick={() => setIsAddingTag(false)} className="p-1 hover:text-red-500"><X className="w-4 h-4" /></button>
                         </div>
                     )}
+                </div>
+
+                {/* Flowmodoro Settings Section */}
+                <div className="space-y-4">
+                    <h2 className="text-xl font-semibold">Timer Settings</h2>
+                    <div className="bg-card border border-border rounded-lg p-4 space-y-4">
+                        <div className="flex flex-col gap-2">
+                            <label className="text-sm font-medium">Flowmodoro Break Ratio</label>
+                            <p className="text-xs text-muted-foreground">
+                                For every N minutes of focus, you get 1 minute of break.
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm">1 :</span>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="10"
+                                    value={useTimerStore(state => state.flowmodoroRatio)}
+                                    onChange={(e) => {
+                                        const val = parseInt(e.target.value);
+                                        if (!isNaN(val) && val > 0) {
+                                            useTimerStore.getState().setFlowmodoroRatio(val);
+                                        }
+                                    }}
+                                    className="w-20 bg-transparent border-b border-border focus:border-foreground outline-none px-2 py-1 text-sm text-center"
+                                />
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 

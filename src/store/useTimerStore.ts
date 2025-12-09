@@ -10,6 +10,7 @@ interface TimerState {
     mode: TimerMode;
     timerType: TimerType;
     pomodoroDuration: number; // Minutes
+    flowmodoroRatio: number; // Ratio denominator (1:5 default)
     earnedBreakTime: number; // Seconds, for Flowmodoro
     startTime: number | null; // Timestamp when current run started
     accumulatedTime: number;  // Seconds accumulated before current run
@@ -24,6 +25,7 @@ interface TimerState {
     setMode: (mode: TimerMode) => void;
     setTimerType: (type: TimerType) => void;
     setPomodoroDuration: (minutes: number) => void;
+    setFlowmodoroRatio: (ratio: number) => void;
     setTaskId: (id: number | null) => void;
     setTagId: (id: number | null) => void;
 }
@@ -33,6 +35,7 @@ export const useTimerStore = create<TimerState>((set, get) => ({
     mode: 'focus',
     timerType: 'flowmodoro',
     pomodoroDuration: 25,
+    flowmodoroRatio: 5, // Default 1:5 ratio
     earnedBreakTime: 0,
     startTime: null,
     accumulatedTime: 0,
@@ -85,7 +88,7 @@ export const useTimerStore = create<TimerState>((set, get) => ({
 
         // Calculation for Flowmodoro Break
         if (state.timerType === 'flowmodoro' && state.mode === 'focus') {
-            const earned = Math.floor(duration / 5);
+            const earned = Math.floor(duration / state.flowmodoroRatio);
             if (earned > 0) {
                 set({ earnedBreakTime: earned });
             }
@@ -123,6 +126,8 @@ export const useTimerStore = create<TimerState>((set, get) => ({
     },
 
     setPomodoroDuration: (minutes) => set({ pomodoroDuration: minutes }),
+
+    setFlowmodoroRatio: (ratio) => set({ flowmodoroRatio: ratio }),
 
     setTaskId: (taskId) => set({ taskId }),
 

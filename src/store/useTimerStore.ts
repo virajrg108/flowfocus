@@ -22,6 +22,7 @@ interface TimerState {
     pause: () => void;
     reset: () => void; // Resets completely
     stop: () => Promise<void>; // Finishes session and saves
+    skipBreak: () => Promise<void>;
     setMode: (mode: TimerMode) => void;
     setTimerType: (type: TimerType) => void;
     setPomodoroDuration: (minutes: number) => void;
@@ -113,6 +114,41 @@ export const useTimerStore = create<TimerState>((set, get) => ({
         }
 
         get().reset();
+    },
+
+    skipBreak: async () => {
+        const state = get();
+        if (state.mode !== 'break') return;
+
+        // Stop current session (save it)
+        let duration = state.accumulatedTime;
+        if (state.status === 'running' && state.startTime) {
+            duration += (Date.now() - state.startTime) / 1000;
+        }
+
+        if (duration >= 5) {
+            try {
+                await db.sessions.add({
+                    startTime: new Date(Date.now() - duration * 1000),
+                    endTime: new Date(),
+                    duration: Math.round(duration),
+                    type: 'break',
+                    taskId: state.taskId || undefined,
+                    tagId: state.selectedTagId || undefined,
+                });
+            } catch (e) {
+                console.error("Failed to save skipped break session", e);
+            }
+        }
+
+        // Switch to Focus and clear earned break time
+        set({
+            mode: 'focus',
+            earnedBreakTime: 0,
+            status: 'idle',
+            startTime: null,
+            accumulatedTime: 0
+        });
     },
 
     setMode: (mode) => set({ mode }),

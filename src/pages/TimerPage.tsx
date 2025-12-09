@@ -10,7 +10,7 @@ export default function TimerPage() {
     const {
         status, mode, startTime, accumulatedTime,
         timerType, pomodoroDuration, earnedBreakTime, selectedTagId,
-        start, pause, stop, setMode, setTimerType, setPomodoroDuration, setTagId
+        start, pause, stop, skipBreak, setMode, setTimerType, setPomodoroDuration, setTagId
     } = useTimerStore();
 
     const tags = useLiveQuery(() => db.tags.toArray());
@@ -132,14 +132,14 @@ export default function TimerPage() {
                 </div>
 
                 {/* Timer Card (Bottom) */}
-                <div className="flex flex-col items-center w-full bg-card border border-border rounded-b-2xl rounded-t-none p-8 shadow-2xl shadow-black/40 space-y-8">
+                <div className="flex flex-col items-center w-full bg-card border border-border rounded-b-2xl rounded-t-none p-6 shadow-2xl shadow-black/40 space-y-6">
 
                     {/* Mode Toggle (Focus/Break) */}
-                    <div className="flex items-center gap-4 bg-secondary/50 p-2 rounded-full">
+                    <div className="flex items-center gap-4 bg-secondary/50 p-1.5 rounded-full">
                         <button
                             onClick={() => setMode('focus')}
                             className={cn(
-                                "px-6 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-2",
+                                "px-5 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2",
                                 mode === 'focus' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
                             )}
                         >
@@ -149,7 +149,7 @@ export default function TimerPage() {
                         <button
                             onClick={() => setMode('break')}
                             className={cn(
-                                "px-6 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-2",
+                                "px-5 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2",
                                 mode === 'break' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
                             )}
                         >
@@ -160,7 +160,7 @@ export default function TimerPage() {
 
                     {/* Tag Selector (Chakra Style) */}
                     {mode === 'focus' && (
-                        <div className="relative z-20 flex items-center justify-center gap-2 mt-6">
+                        <div className="relative z-20 flex items-center justify-center gap-2 mt-4">
                             {status === 'idle' && accumulatedTime === 0 ? (
                                 <>
                                     <div className="relative" ref={dropdownRef}>
@@ -235,9 +235,9 @@ export default function TimerPage() {
                     )}
 
                     {/* Timer Display */}
-                    <div className="relative group text-center py-8">
+                    <div className="relative group text-center py-4">
                         <div className={cn(
-                            "text-[120px] leading-none font-medium tabular-nums tracking-tighter select-none transition-colors",
+                            "text-[100px] leading-none font-medium tabular-nums tracking-tighter select-none transition-colors",
                             mode === 'focus' ? "text-focus" : "text-break"
                         )}>
                             {formatTime(displayTime)}
@@ -250,8 +250,16 @@ export default function TimerPage() {
                             </div>
                         )}
                         {timerType === 'flowmodoro' && mode === 'break' && (
-                            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 text-sm text-muted-foreground whitespace-nowrap">
-                                Total Break: {formatTime(earnedBreakTime)}
+                            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
+                                <div className="text-sm text-muted-foreground whitespace-nowrap">
+                                    Total Break: {formatTime(earnedBreakTime)}
+                                </div>
+                                <button
+                                    onClick={() => skipBreak()}
+                                    className="text-xs text-primary hover:underline"
+                                >
+                                    Skip Break
+                                </button>
                             </div>
                         )}
 
@@ -281,6 +289,18 @@ export default function TimerPage() {
                                         <Pencil className="w-3 h-3" />
                                     </button>
                                 )}
+                            </div>
+                        )}
+
+                        {/* Pomodoro Break Skip */}
+                        {timerType === 'pomodoro' && mode === 'break' && (
+                            <div className="absolute -bottom-6 left-1/2 -translate-x-1/2">
+                                <button
+                                    onClick={() => skipBreak()}
+                                    className="text-xs text-primary hover:underline"
+                                >
+                                    Skip Break
+                                </button>
                             </div>
                         )}
                     </div>

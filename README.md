@@ -4,24 +4,37 @@ A modern productivity timer app featuring both Flowmodoro and Pomodoro technique
 
 ## Features
 
-- 🎯 **Dual Timer Modes**
-  - **Flowmodoro**: Flexible focus sessions with earned breaks (1:5 ratio)
-  - **Pomodoro**: Traditional 25-minute focus sessions with customizable duration
+- 🎯 **Advanced Productivity Timer**
+  - **Flowtime Mode**: Count-up timer with earned breaks (1:5 ratio) for flexible flow states
+  - **Pomodoro Mode**: Traditional count-down sessions with customizable durations
+  - **Intelligent Mode Switching**: Auto-transitions between focus and break modes
 
-- 🎨 **Beautiful UI**
-  - Dark/Light theme support
-  - Color-coded modes (Indigo for Focus, Cyan for Break)
-  - Smooth animations and transitions
+- ✅ **Task Management**
+  - Create, track, and complete daily tasks
+  - Simple and intuitive task list interface
+  - Persistent storage using local database
 
-- 📊 **Analytics & Tracking**
-  - Session history
-  - Daily statistics
-  - Visual charts and insights
+- 🏷️ **Tag System**
+  - Organize sessions with specific tags (e.g., Work, Study, Coding)
+  - Color-coded tags for visual distinction
+  - Manage up to 5 custom tags with editing capabilities
 
-- 💾 **Offline Support**
-  - Progressive Web App (PWA)
-  - Local data storage
-  - Works without internet
+- 📊 **Detailed Analytics**
+  - **Activity Overview**: Stacked bar chart showing daily focus distribution by tag
+  - **Daily Timeline**: Gantt-style chart visualizing focus sessions and breaks
+  - **Consistency Heatmap**: GitHub-style contribution graph for the last 12 months
+  - **Date Filtering**: View stats for last 7, 30, 60 days or custom ranges
+  - **Session Insights**: Hover tooltips for detailed session info
+
+- ⚙️ **Settings & Customization**
+  - **Theme Support**: Toggle between Light and Dark modes
+  - **Data Management**: Option to clear all application data
+  - **Tag Configuration**: centralized management for session tags
+
+- 💾 **Local & Offline First**
+  - **IndexedDB Storage**: All data stays on your device
+  - **PWA Ready**: Installable as a native-like app
+  - **Privacy Focused**: No external data tracking
 
 ## Live Demo
 

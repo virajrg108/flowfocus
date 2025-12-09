@@ -38,7 +38,7 @@ A modern productivity timer app featuring both Flowmodoro and Pomodoro technique
 
 ## Live Demo
 
-Visit the live app: [FlowFocus on GitHub Pages](https://yourusername.github.io/flowfocus)
+Visit the live app: [FlowFocus on GitHub Pages](https://virajrg108.github.io/flowfocus)
 
 ## Local Development
 
@@ -69,7 +69,3 @@ This app is automatically deployed to GitHub Pages when changes are pushed to th
 - Zustand (State Management)
 - Dexie (IndexedDB)
 - Recharts (Analytics)
-
-## License
-
-MIT

@@ -236,7 +236,7 @@ export default function TimerPage() {
                                         }
                                     }
                                 }}
-                                className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center text-destructive hover:bg-destructive/20 transition-colors"
+                                className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center text-destructive hover:bg-destructive/20 transition-colors shadow-md"
                             >
                                 <Square className="w-6 h-6 fill-current" />
                             </button>

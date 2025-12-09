@@ -19,7 +19,7 @@ export default defineConfig({
         theme_color: '#09090b',
         background_color: '#09090b',
         display: 'standalone',
-        start_url: '/flowfocus/',
+        start_url: '/flowfocus',
         icons: [
           {
             src: 'logo.png',
@@ -30,5 +30,5 @@ export default defineConfig({
       }
     })
   ],
-  base: '/flowfocus/',
+  base: '/flowfocus',
 })

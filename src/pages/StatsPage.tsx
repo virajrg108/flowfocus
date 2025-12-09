@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../lib/db";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import {
     startOfDay, subDays, format, isSameDay,
-    eachDayOfInterval, subMonths
+    eachDayOfInterval, subMonths, startOfWeek
 } from "date-fns";
 import { cn } from "../lib/utils";
 import { Calendar, Filter } from "lucide-react";
@@ -17,6 +17,24 @@ export default function StatsPage() {
     const [customEnd, setCustomEnd] = useState(format(new Date(), 'yyyy-MM-dd'));
 
     const sessions = useLiveQuery(() => db.sessions.toArray());
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollLeft = scrollContainerRef.current.scrollWidth;
+        }
+    }, [sessions]); // Re-run if sessions load/change, though mainly on mount is fine. Adding sessions ensures it scrolls after data might push width? key is layout. 
+    // Actually, sessions don't change the 12-month width much, but safe to depend on mount or just empty array if layout is stable.
+    // Let's rely on empty array or simple mount, but sessions load might be async?
+    // The grid is fixed logic based on date, so width is stable immediately.
+    // Let's just use empty dependency or [range] if range changes (though range is not affecting heatmap directly anymore? actually it is separate).
+
+    // Better to use empty dependency for "default" scroll.
+    useEffect(() => {
+        if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollLeft = scrollContainerRef.current.scrollWidth;
+        }
+    }, []);
 
     // --- Filtering Logic ---
     const getFilterDate = () => {
@@ -59,17 +77,18 @@ export default function StatsPage() {
         end: startOfDay(new Date())
     });
 
-    // Heatmap Data (Last 3 Months Fixed)
-    const heatmapStartDate = subMonths(startOfDay(new Date()), 3); // Approx 3 months
+    // Heatmap Data (Last 12 Months)
+    // Start of week (Monday) 12 months ago
+    const heatmapStartDate = startOfWeek(subMonths(startOfDay(new Date()), 12), { weekStartsOn: 1 });
     const heatmapData = eachDayOfInterval({ start: heatmapStartDate, end: new Date() });
 
     const getIntensity = (minutes: number) => {
         if (minutes === 0) return 'bg-secondary/30';
-        if (minutes < 30) return 'bg-primary/20';
-        if (minutes < 60) return 'bg-primary/40';
-        if (minutes < 120) return 'bg-primary/60';
-        if (minutes < 240) return 'bg-primary/80';
-        return 'bg-primary';
+        if (minutes < 30) return 'bg-green-200';
+        if (minutes < 60) return 'bg-green-400';
+        if (minutes < 120) return 'bg-green-600';
+        if (minutes < 240) return 'bg-green-700';
+        return 'bg-green-900';
     };
 
     // Stats Totals
@@ -239,39 +258,74 @@ export default function StatsPage() {
                 </div>
             </div>
 
-            {/* 3. Heat Map (Last 3 Months) */}
+            {/* 3. Heat Map (Last 12 Months) */}
             <div className="space-y-4">
-                <h3 className="text-lg font-medium">Consistency (Last 3 Months)</h3>
-                <div className="p-6 rounded-xl bg-card border border-border overflow-x-auto">
-                    <div className="inline-grid grid-rows-7 grid-flow-col gap-1">
-                        {heatmapData.map(day => {
-                            const dayMinutes = sessions?.filter(s =>
-                                s.type === 'work' && isSameDay(new Date(s.startTime), day)
-                            ).reduce((acc, s) => acc + (s.duration / 60), 0) || 0;
+                <h3 className="text-lg font-medium">Consistency (Last 12 Months)</h3>
+                <div className="p-6 rounded-xl bg-card border border-border">
+                    <div className="flex gap-2">
+                        {/* Weekday Labels */}
+                        <div className="grid grid-rows-7 gap-1 text-xs text-muted-foreground pt-6 h-full font-medium">
+                            <div>Mon</div>
+                            <div>Tue</div>
+                            <div>Wed</div>
+                            <div>Thu</div>
+                            <div>Fri</div>
+                            <div>Sat</div>
+                            <div>Sun</div>
+                        </div>
 
-                            return (
-                                <div
-                                    key={day.toISOString()}
-                                    className={cn(
-                                        "w-3 h-3 rounded-[2px] transition-colors relative group",
-                                        getIntensity(Math.round(dayMinutes))
-                                    )}
-                                >
-                                    <div className="invisible group-hover:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-popover text-popover-foreground text-xs rounded border border-border whitespace-nowrap z-10">
-                                        {format(day, 'MMM d')}: {Math.round(dayMinutes)}m
-                                    </div>
+                        {/* Chart Area */}
+                        <div ref={scrollContainerRef} className="overflow-x-auto pb-2 flex-1">
+                            <div className="min-w-max">
+                                {/* Month Labels */}
+                                <div className="flex text-xs text-muted-foreground mb-2 px-1">
+                                    {heatmapData.map((day, index) => {
+                                        // Show month label roughly at the start of each month (only for the first week of the month)
+                                        if (index % 7 === 0 && day.getDate() <= 7) {
+                                            return (
+                                                <div key={index} className="flex-1 text-left" style={{ width: 'calc(12px * 4 + 4px * 4)' }}>
+                                                    {format(day, 'MMM')}
+                                                </div>
+                                            )
+                                        }
+                                        return null;
+                                    })}
                                 </div>
-                            );
-                        })}
+
+                                {/* The Grid */}
+                                <div className="inline-grid grid-rows-7 grid-flow-col gap-1">
+                                    {heatmapData.map(day => {
+                                        const dayMinutes = sessions?.filter(s =>
+                                            s.type === 'work' && isSameDay(new Date(s.startTime), day)
+                                        ).reduce((acc, s) => acc + (s.duration / 60), 0) || 0;
+
+                                        return (
+                                            <div
+                                                key={day.toISOString()}
+                                                className={cn(
+                                                    "w-3 h-3 rounded-[2px] transition-colors relative group",
+                                                    getIntensity(Math.round(dayMinutes))
+                                                )}
+                                            >
+                                                <div className="invisible group-hover:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-popover text-popover-foreground text-xs rounded border border-border whitespace-nowrap z-10 pointer-events-none">
+                                                    {format(day, 'MMM d, yyyy')}: {Math.round(dayMinutes)}m
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
                     </div>
+
                     <div className="mt-4 flex items-center justify-end gap-2 text-xs text-muted-foreground">
                         <span>Less</span>
                         <div className="flex gap-1">
                             <div className="w-3 h-3 rounded-[2px] bg-secondary/30" />
-                            <div className="w-3 h-3 rounded-[2px] bg-primary/20" />
-                            <div className="w-3 h-3 rounded-[2px] bg-primary/40" />
-                            <div className="w-3 h-3 rounded-[2px] bg-primary/60" />
-                            <div className="w-3 h-3 rounded-[2px] bg-primary/80" />
+                            <div className="w-3 h-3 rounded-[2px] bg-green-200" />
+                            <div className="w-3 h-3 rounded-[2px] bg-green-400" />
+                            <div className="w-3 h-3 rounded-[2px] bg-green-600" />
+                            <div className="w-3 h-3 rounded-[2px] bg-green-900" />
                         </div>
                         <span>More</span>
                     </div>

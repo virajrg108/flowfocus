@@ -9,7 +9,7 @@ import { ThemeProvider } from "./components/ThemeProvider";
 
 function App() {
   return (
-    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+    <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
       <BrowserRouter basename="/flowfocus">
         <Routes>
           <Route path="/" element={<Layout />}>

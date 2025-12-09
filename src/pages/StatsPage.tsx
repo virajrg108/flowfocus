@@ -24,11 +24,7 @@ export default function StatsPage() {
         if (scrollContainerRef.current) {
             scrollContainerRef.current.scrollLeft = scrollContainerRef.current.scrollWidth;
         }
-    }, [sessions]); // Re-run if sessions load/change, though mainly on mount is fine. Adding sessions ensures it scrolls after data might push width? key is layout. 
-    // Actually, sessions don't change the 12-month width much, but safe to depend on mount or just empty array if layout is stable.
-    // Let's rely on empty array or simple mount, but sessions load might be async?
-    // The grid is fixed logic based on date, so width is stable immediately.
-    // Let's just use empty dependency or [range] if range changes (though range is not affecting heatmap directly anymore? actually it is separate).
+    }, [sessions]);
 
     // Better to use empty dependency for "default" scroll.
     useEffect(() => {
@@ -56,7 +52,7 @@ export default function StatsPage() {
     const startDate = getFilterDate();
     const endDate = getEndDate();
 
-    // Bar Chart Data
+    // --- Data Processing for Stacked Bar Chart ---
     const dateInterval = eachDayOfInterval({ start: startDate, end: endDate });
 
     const barData = dateInterval.map(date => {
@@ -64,19 +60,48 @@ export default function StatsPage() {
             s.type === 'work' && isSameDay(new Date(s.startTime), date)
         ) || [];
 
-        const totalSeconds = daySessions.reduce((acc, s) => acc + s.duration, 0);
-        return {
+        // Distribute minutes by tag for this day
+        const dayStats: { [key: string]: any } = {
             date: format(date, range === '7d' ? 'EEE' : 'MMM d'),
             fullDate: format(date, 'MMM d, yyyy'),
-            minutes: Math.round(totalSeconds / 60)
+            totalMinutes: 0
         };
+
+        daySessions.forEach(session => {
+            const minutes = session.duration / 60;
+            const tagKey = session.tagId ? `tag_${session.tagId}` : 'untagged';
+
+            dayStats[tagKey] = (dayStats[tagKey] || 0) + minutes;
+            dayStats.totalMinutes += minutes;
+        });
+
+        // Round all values
+        Object.keys(dayStats).forEach(key => {
+            if (typeof dayStats[key] === 'number') {
+                dayStats[key] = Math.round(dayStats[key]);
+            }
+        });
+
+        return dayStats;
     });
 
-    // Tag Stats (Based on Filtered Range)
+    // Helper to get tag color (shared between charts)
+    const getTagColor = (tagId?: number) => {
+        if (!tagId) return '#94a3b8'; // slate-400 for untagged
+        return tags?.find(t => t.id === tagId)?.color || '#94a3b8';
+    }
+
+    const getTagName = (tagId?: number) => {
+        if (!tagId) return 'Untagged';
+        return tags?.find(t => t.id === tagId)?.name || 'Unknown';
+    }
+
+
+    // --- Tag Stats for Pie Chart (Based on Filtered Range) ---
     const filteredSessions = sessions?.filter(s =>
         s.type === 'work' &&
         new Date(s.startTime) >= startDate &&
-        new Date(s.startTime) <= new Date(endDate.getTime() + 86400000) // Include end date fully
+        new Date(s.startTime) <= new Date(endDate.getTime() + 86400000)
     ) || [];
 
     const tagStats = tags?.map(tag => {
@@ -97,7 +122,7 @@ export default function StatsPage() {
     if (untaggedDuration > 0) {
         tagStats.push({
             name: 'Untagged',
-            color: '#94a3b8', // slate-400
+            color: '#94a3b8',
             minutes: Math.round(untaggedDuration / 60)
         });
     }
@@ -109,7 +134,6 @@ export default function StatsPage() {
     });
 
     // Heatmap Data (Last 12 Months)
-    // Start of week (Monday) 12 months ago
     const heatmapStartDate = startOfWeek(subMonths(startOfDay(new Date()), 12), { weekStartsOn: 1 });
     const heatmapData = eachDayOfInterval({ start: heatmapStartDate, end: new Date() });
 
@@ -154,7 +178,7 @@ export default function StatsPage() {
                 </div>
             </div>
 
-            {/* 1. Bar Chart with Date Filters */}
+            {/* 1. Stacked Bar Chart with Date Filters */}
             <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <h3 className="text-lg font-medium flex items-center gap-2">
@@ -207,7 +231,7 @@ export default function StatsPage() {
                 <div className="grid md:grid-cols-2 gap-4">
                     <div className="p-6 rounded-xl bg-card border border-border h-[400px] flex-1">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={barData}>
+                            <BarChart data={barData} stackOffset="sign">
                                 <XAxis
                                     dataKey="date"
                                     stroke="var(--muted-foreground)"
@@ -227,21 +251,48 @@ export default function StatsPage() {
                                     cursor={{ fill: 'var(--secondary)', opacity: 0.5 }}
                                     content={({ active, payload }) => {
                                         if (active && payload && payload.length) {
+                                            const total = payload.reduce((acc, p) => acc + (p.value as number), 0);
                                             return (
                                                 <div className="bg-popover border border-border p-2 rounded shadow-sm text-sm">
-                                                    <p className="font-medium text-foreground">{payload[0].payload.fullDate}</p>
-                                                    <p className="text-primary">{payload[0].value} mins</p>
+                                                    <p className="font-medium text-foreground mb-1">{payload[0].payload.fullDate}</p>
+                                                    {payload.map((entry, idx) => (
+                                                        <div key={idx} className="flex items-center gap-2 text-xs">
+                                                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                                                            <span className="text-muted-foreground">{entry.name}:</span>
+                                                            <span className="font-medium">{entry.value}m</span>
+                                                        </div>
+                                                    ))}
+                                                    <div className="mt-1 pt-1 border-t border-border flex justify-between font-medium">
+                                                        <span>Total:</span>
+                                                        <span>{total}m</span>
+                                                    </div>
                                                 </div>
                                             );
                                         }
                                         return null;
                                     }}
                                 />
-                                <Bar dataKey="minutes" radius={[4, 4, 0, 0]}>
-                                    {barData.map((_, index) => (
-                                        <Cell key={`cell-${index}`} fill="var(--primary)" />
-                                    ))}
-                                </Bar>
+                                {/* Render a Bar for each tag present in the system, plus untagged */}
+                                {tags?.map(tag => (
+                                    <Bar
+                                        key={tag.id}
+                                        dataKey={`tag_${tag.id}`}
+                                        name={tag.name}
+                                        stackId="a"
+                                        fill={tag.color}
+                                        radius={[0, 0, 0, 0]}
+                                    />
+                                ))}
+                                <Bar
+                                    dataKey="untagged"
+                                    name="Untagged"
+                                    stackId="a"
+                                    fill="#94a3b8"
+                                    radius={[4, 4, 0, 0]} // Top radius only on the last one? Recharts handles this awkwardly with dynamic content.
+                                // Actually, radius on stacked bars usually applies to the *last* non-zero segment. 
+                                // Recharts doesn't auto-handle mixed stacks perfectly for radius. 
+                                // Let's just remove radius for stacked segments to look clean, or use a small one for all if allowed.
+                                />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
@@ -311,7 +362,7 @@ export default function StatsPage() {
                 <div className="p-6 rounded-xl bg-card border border-border space-y-4 overflow-x-auto">
                     {ganttDays.reverse().map((day) => {
                         const daySessions = sessions?.filter(s =>
-                            s.type === 'work' && isSameDay(new Date(s.startTime), day)
+                            isSameDay(new Date(s.startTime), day)
                         ).sort((a, b) => a.startTime.getTime() - b.startTime.getTime()) || [];
 
                         return (
@@ -333,15 +384,33 @@ export default function StatsPage() {
                                         const startPercent = (startMins / 1440) * 100;
                                         const widthPercent = Math.max((durationMins / 1440) * 100, 0.5); // min width for visibility
 
+                                        let sessionColor = getTagColor(session.tagId);
+                                        let sessionLabel = getTagName(session.tagId);
+
+                                        if (session.type === 'break') {
+                                            sessionColor = 'var(--muted)'; // Use a muted color for breaks
+                                            sessionLabel = 'Break';
+                                        }
+
                                         return (
                                             <div
                                                 key={session.id}
-                                                className="absolute top-1 bottom-1 bg-primary rounded-sm opacity-80 hover:opacity-100 transition-opacity cursor-help group"
-                                                style={{ left: `${startPercent}%`, width: `${widthPercent}%` }}
+                                                className={cn(
+                                                    "absolute top-1 bottom-1 rounded-sm opacity-90 hover:opacity-100 transition-opacity cursor-help group",
+                                                    session.type === 'break' && "border border-border/50" // Optional border for breaks
+                                                )}
+                                                style={{
+                                                    left: `${startPercent}%`,
+                                                    width: `${widthPercent}%`,
+                                                    backgroundColor: session.type === 'break' ? 'var(--secondary)' : sessionColor
+                                                }}
                                             >
                                                 {/* Tooltip on hover */}
-                                                <div className="invisible group-hover:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded border border-border whitespace-nowrap z-10">
-                                                    {format(session.startTime, 'HH:mm')} - {Math.round(session.duration / 60)}m
+                                                <div className="invisible group-hover:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded border border-border whitespace-nowrap z-50 shadow-sm flex items-center gap-2">
+                                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: session.type === 'break' ? 'var(--secondary)' : sessionColor }} />
+                                                    <span>{sessionLabel}</span>
+                                                    <span className="opacity-50">|</span>
+                                                    <span>{format(session.startTime, 'HH:mm')} - {Math.round(session.duration / 60)}m</span>
                                                 </div>
                                             </div>
                                         );

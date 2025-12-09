@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 import { useTimerStore } from "../store/useTimerStore";
-import { Play, Pause, Square, Coffee, Brain, Pencil, Check, Tag as TagIcon, ChevronDown, Settings } from "lucide-react";
+import { Play, Pause, Square, Coffee, Brain, Pencil, Check, Tag as TagIcon, ChevronDown } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../lib/db";
@@ -116,7 +116,7 @@ export default function TimerPage() {
                                 : "text-muted-foreground hover:text-foreground hover:bg-background/50"
                         )}
                     >
-                        Flowmodoro
+                        Flowtime
                     </button>
                     <button
                         onClick={() => setTimerType('pomodoro')}

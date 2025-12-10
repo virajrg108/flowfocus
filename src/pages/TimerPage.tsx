@@ -1,12 +1,32 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 import { useTimerStore } from "../store/useTimerStore";
-import { Play, Pause, Square, Coffee, Brain, Pencil, Check, Tag as TagIcon, ChevronDown } from "lucide-react";
+import { Play, Pause, Square, Coffee, Brain, Pencil, Check, Tag as TagIcon, ChevronDown, History } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../lib/db";
+import HistoryModal from "../components/HistoryModal";
 
 export default function TimerPage() {
+    const playChime = () => {
+        const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(500, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1000, ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.5, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.5);
+
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 1.5);
+    };
     const {
         status, mode, startTime, accumulatedTime,
         timerType, pomodoroDuration, earnedBreakTime, selectedTagId,
@@ -19,7 +39,9 @@ export default function TimerPage() {
     const [isEditingPomo, setIsEditingPomo] = useState(false);
     const [pomoInput, setPomoInput] = useState(pomodoroDuration.toString());
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const flowmodoroRatio = useTimerStore(state => state.flowmodoroRatio);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -56,18 +78,20 @@ export default function TimerPage() {
                     setDisplayTime(remaining);
 
                     if (remaining === 0 && status === 'running') {
+                        playChime();
                         stop().then(() => setMode('focus'));
                     }
                 }
             } else {
                 // Pomodoro Logic
                 let targetParams = pomodoroDuration * 60;
-                if (mode === 'break') targetParams = (pomodoroDuration * 60) / 5;
+                if (mode === 'break') targetParams = (pomodoroDuration * 60) / flowmodoroRatio;
 
                 const remaining = Math.max(0, targetParams - totalElapsed);
                 setDisplayTime(remaining);
 
                 if (remaining === 0 && status === 'running') {
+                    playChime();
                     stop().then(() => {
                         // Auto switch modes: Break -> Focus, Focus -> Break
                         if (mode === 'break') {
@@ -104,7 +128,18 @@ export default function TimerPage() {
 
     return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] max-w-xl mx-auto">
-            <div className="w-full max-w-lg flex flex-col">
+            <HistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
+
+            <div className="w-full max-w-lg flex flex-col relative">
+                <button
+                    onClick={() => setIsHistoryOpen(true)}
+                    className="absolute -top-10 right-0 p-2 text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 text-sm font-medium"
+                    title="View History"
+                >
+                    <History className="w-4 h-4" />
+                    <span>Today's Activity</span>
+                </button>
+
                 {/* Tabs (Outside Card - Top) */}
                 <div className="grid grid-cols-2 p-1 bg-muted/50 rounded-t-xl border-t border-x border-border">
                     <button
@@ -235,7 +270,7 @@ export default function TimerPage() {
                     )}
 
                     {/* Timer Display */}
-                    <div className="relative group text-center py-4">
+                    <div className="relative group text-center py-4 flex items-center flex-col">
                         <div className={cn(
                             "text-[100px] leading-none font-medium tabular-nums tracking-tighter select-none transition-colors",
                             mode === 'focus' ? "text-focus" : "text-break"
@@ -246,11 +281,11 @@ export default function TimerPage() {
                         {/* Flowmodoro Info */}
                         {timerType === 'flowmodoro' && mode === 'focus' && status !== 'idle' && (
                             <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 text-sm text-muted-foreground whitespace-nowrap">
-                                Break earned: {formatTime(Math.floor(displayTime / 5))}
+                                Break earned: {formatTime(Math.floor(displayTime / flowmodoroRatio))}
                             </div>
                         )}
                         {timerType === 'flowmodoro' && mode === 'break' && (
-                            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
+                            <div className=" flex flex-col items-center gap-2">
                                 <div className="text-sm text-muted-foreground whitespace-nowrap">
                                     Total Break: {formatTime(earnedBreakTime)}
                                 </div>
@@ -265,7 +300,7 @@ export default function TimerPage() {
 
                         {/* Pomodoro Edit Controls */}
                         {timerType === 'pomodoro' && mode === 'focus' && status === 'idle' && (
-                            <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2">
+                            <div className="flex items-center gap-2">
                                 {isEditingPomo ? (
                                     <div className="flex items-center gap-2 bg-popover border border-border rounded-md p-1 shadow-sm">
                                         <input
@@ -294,7 +329,7 @@ export default function TimerPage() {
 
                         {/* Pomodoro Break Skip */}
                         {timerType === 'pomodoro' && mode === 'break' && (
-                            <div className="absolute -bottom-6 left-1/2 -translate-x-1/2">
+                            <div>
                                 <button
                                     onClick={() => skipBreak()}
                                     className="text-xs text-primary hover:underline"
@@ -346,7 +381,7 @@ export default function TimerPage() {
                                         if (timerType === 'flowmodoro') {
                                             setDisplayTime(mode === 'focus' ? 0 : earnedBreakTime);
                                         } else {
-                                            setDisplayTime(mode === 'focus' ? pomodoroDuration * 60 : (pomodoroDuration * 60) / 5);
+                                            setDisplayTime(mode === 'focus' ? pomodoroDuration * 60 : (pomodoroDuration * 60) / flowmodoroRatio);
                                         }
                                     }
                                 }}

@@ -52,7 +52,7 @@ export default function TimerPage() {
             closePiP();
         } else {
             // Requesting a small window for the timer
-            await requestPiP(350, 480);
+            await requestPiP(300, 200);
         }
     };
 
@@ -144,27 +144,27 @@ export default function TimerPage() {
             <HistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
 
             <div className="w-full max-w-lg flex flex-col relative">
-                <button
-                    onClick={() => setIsHistoryOpen(true)}
-                    className="absolute -top-10 right-0 p-2 text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 text-sm font-medium"
-                    title="View History"
-                >
-                    <History className="w-4 h-4" />
-                    <span>Today's Activity</span>
-                </button>
-
-                {/* PiP Toggle */}
-                {isSupported && (
+                <div className="flex justify-between">
+                    {/* PiP Toggle */}
+                    {isSupported && (
+                        <button
+                            onClick={togglePiP}
+                            className="p-2 text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 text-sm font-medium"
+                            title={pipWindow ? "Restore Timer" : "Pop out Timer"}
+                        >
+                            <PictureInPicture2 className="w-4 h-4" />
+                            <span>{pipWindow ? "Restore" : "Pop out"}</span>
+                        </button>
+                    )}
                     <button
-                        onClick={togglePiP}
-                        className="absolute -top-10 left-0 p-2 text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 text-sm font-medium"
-                        title={pipWindow ? "Restore Timer" : "Pop out Timer"}
+                        onClick={() => setIsHistoryOpen(true)}
+                        className="p-2 text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 text-sm font-medium"
+                        title="View History"
                     >
-                        <PictureInPicture2 className="w-4 h-4" />
-                        <span>{pipWindow ? "Restore" : "Pop out"}</span>
+                        <History className="w-4 h-4" />
+                        <span>Today's Activity</span>
                     </button>
-                )}
-
+                </div>
                 {/* Tabs (Outside Card - Top) */}
                 <div className="grid grid-cols-2 p-1 bg-muted/50 rounded-t-xl border-t border-x border-border">
                     <button
@@ -203,32 +203,34 @@ export default function TimerPage() {
                 {(() => {
                     const content = (
                         <div className={cn(
-                            "flex flex-col items-center w-full bg-card border border-border rounded-b-2xl p-6 shadow-2xl shadow-black/40 space-y-6",
+                            "flex flex-col items-center w-full bg-card border border-border rounded-b-2xl shadow-2xl shadow-black/40",
                             // Style adjustments for PiP vs Main
-                            !pipWindow && "rounded-t-none", // Normal mode
-                            pipWindow && "h-full justify-center rounded-none border-none shadow-none" // PiP Mode
+                            !pipWindow && "rounded-t-none p-6 space-y-6", // Normal mode
+                            pipWindow && "h-full justify-center rounded-none border-none shadow-none p-2 space-y-2" // PiP Mode
                         )}>
 
                             {/* Mode Toggle (Focus/Break) */}
-                            <div className="flex items-center gap-4 bg-secondary/50 p-1.5 rounded-full">
+                            <div className={cn("flex items-center gap-4 bg-secondary/50 rounded-full", pipWindow ? "p-1 scale-90" : "p-1.5")}>
                                 <button
                                     onClick={() => setMode('focus')}
                                     className={cn(
-                                        "px-5 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2",
+                                        "rounded-full text-sm font-medium transition-colors flex items-center gap-2",
+                                        pipWindow ? "px-3 py-1 text-xs" : "px-5 py-1.5",
                                         mode === 'focus' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
                                     )}
                                 >
-                                    <Brain className="w-4 h-4" />
+                                    <Brain className={cn(pipWindow ? "w-3 h-3" : "w-4 h-4")} />
                                     Focus
                                 </button>
                                 <button
                                     onClick={() => setMode('break')}
                                     className={cn(
-                                        "px-5 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-2",
+                                        "rounded-full text-sm font-medium transition-colors flex items-center gap-2",
+                                        pipWindow ? "px-3 py-1 text-xs" : "px-5 py-1.5",
                                         mode === 'break' ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
                                     )}
                                 >
-                                    <Coffee className="w-4 h-4" />
+                                    <Coffee className={cn(pipWindow ? "w-3 h-3" : "w-4 h-4")} />
                                     Break
                                 </button>
                             </div>
@@ -312,7 +314,8 @@ export default function TimerPage() {
                             {/* Timer Display */}
                             <div className="relative group text-center py-4 flex items-center flex-col">
                                 <div className={cn(
-                                    "text-[100px] leading-none font-medium tabular-nums tracking-tighter select-none transition-colors",
+                                    "leading-none font-medium tabular-nums tracking-tighter select-none transition-colors",
+                                    pipWindow ? "text-6xl" : "text-[100px]",
                                     mode === 'focus' ? "text-focus" : "text-break"
                                 )}>
                                     {formatTime(displayTime)}
@@ -386,25 +389,27 @@ export default function TimerPage() {
                                     <button
                                         onClick={pause}
                                         className={cn(
-                                            "h-16 w-16 rounded-full flex items-center justify-center transition-colors shadow-md",
+                                            "rounded-full flex items-center justify-center transition-colors shadow-md",
+                                            pipWindow ? "h-12 w-12" : "h-16 w-16",
                                             mode === 'focus'
                                                 ? "bg-focus/20 text-focus hover:bg-focus/30 shadow-focus/25"
                                                 : "bg-break/20 text-break hover:bg-break/30 shadow-break/25"
                                         )}
                                     >
-                                        <Pause className="w-8 h-8 fill-current" />
+                                        <Pause className={cn("fill-current", pipWindow ? "w-6 h-6" : "w-8 h-8")} />
                                     </button>
                                 ) : (
                                     <button
                                         onClick={start}
                                         className={cn(
-                                            "h-16 w-16 rounded-full flex items-center justify-center transition-colors shadow-md",
+                                            "rounded-full flex items-center justify-center transition-colors shadow-md",
+                                            pipWindow ? "h-12 w-12" : "h-16 w-16",
                                             mode === 'focus'
                                                 ? "bg-focus/20 text-focus hover:bg-focus/30 shadow-focus/25"
                                                 : "bg-break/20 text-break hover:bg-break/30 shadow-break/25"
                                         )}
                                     >
-                                        <Play className="w-8 h-8 fill-current ml-1" />
+                                        <Play className={cn("fill-current ml-1", pipWindow ? "w-6 h-6" : "w-8 h-8")} />
                                     </button>
                                 )}
 
@@ -425,9 +430,12 @@ export default function TimerPage() {
                                                 }
                                             }
                                         }}
-                                        className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center text-destructive hover:bg-destructive/20 transition-colors shadow-md"
+                                        className={cn(
+                                            "rounded-full bg-destructive/10 flex items-center justify-center text-destructive hover:bg-destructive/20 transition-colors shadow-md",
+                                            pipWindow ? "h-12 w-12" : "h-16 w-16"
+                                        )}
                                     >
-                                        <Square className="w-6 h-6 fill-current" />
+                                        <Square className={cn("fill-current", pipWindow ? "w-4 h-4" : "w-6 h-6")} />
                                     </button>
                                 )}
                             </div>

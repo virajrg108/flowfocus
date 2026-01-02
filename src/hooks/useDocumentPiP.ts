@@ -61,8 +61,18 @@ export const useDocumentPiP = (options: UseDocumentPiPOptions = {}) => {
             });
 
 
+            // Sync initial theme class
+            windowProxy.document.documentElement.className = document.documentElement.className;
+
+            // Observe theme changes in main window
+            const observer = new MutationObserver(() => {
+                windowProxy.document.documentElement.className = document.documentElement.className;
+            });
+            observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
             // Handle closing
             windowProxy.addEventListener('pagehide', () => {
+                observer.disconnect();
                 setPipWindow(null);
                 options.onClose?.();
             });

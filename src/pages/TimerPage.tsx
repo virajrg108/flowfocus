@@ -205,7 +205,7 @@ export default function TimerPage() {
                         <div className={cn(
                             "flex flex-col items-center w-full bg-card border border-border rounded-b-2xl shadow-2xl shadow-black/40",
                             // Style adjustments for PiP vs Main
-                            !pipWindow && "rounded-t-none p-6 space-y-6", // Normal mode
+                            !pipWindow && "rounded-t-none p-6", // Normal mode
                             pipWindow && "h-full justify-center rounded-none border-none shadow-none p-2 space-y-2" // PiP Mode
                         )}>
 
@@ -312,7 +312,7 @@ export default function TimerPage() {
                             )}
 
                             {/* Timer Display */}
-                            <div className="relative group text-center py-4 flex items-center flex-col">
+                            <div className="relative group text-center pb-4 flex items-center flex-col">
                                 <div className={cn(
                                     "leading-none font-medium tabular-nums tracking-tighter select-none transition-colors",
                                     pipWindow ? "text-6xl" : "text-[100px]",
@@ -323,7 +323,7 @@ export default function TimerPage() {
 
                                 {/* Flowmodoro Info */}
                                 {timerType === 'flowmodoro' && mode === 'focus' && status !== 'idle' && (
-                                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 text-sm text-muted-foreground whitespace-nowrap">
+                                    <div className="text-sm text-muted-foreground whitespace-nowrap">
                                         Break earned: {formatTime(Math.floor(displayTime / flowmodoroRatio))}
                                     </div>
                                 )}
